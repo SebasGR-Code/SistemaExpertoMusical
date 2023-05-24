@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Magic Music Box</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-primary mb-4">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">Magic Music Box</a>
+        </div>
+    </nav>
+    <div class="d-flex justify-content-center mb-4">
+        <button class="btn btn-primary" id="init">Iniciar</button>
+    </div>
+    <div class="d-flex justify-content-center border border-5 border-primary rounded p-4 mx-4 mb-3">
+        <h2 id="box"></h2>
+    </div>
+
+    <div class="container">
+        <div class="progress mb-2">
+            <div class="progress-bar progress-bar-striped" id="0" style="min-width: 100px;"></div>
+        </div>
+        <div class="progress mb-2">
+            <div class="progress-bar progress-bar-striped" id="1" style="min-width: 100px;"></div>
+        </div>
+        <div class="progress mb-2">
+            <div class="progress-bar progress-bar-striped" id="2" style="min-width: 100px;"></div>
+        </div>
+        <div class="progress mb-2">
+            <div class="progress-bar progress-bar-striped" id="3" style="min-width: 100px;"></div>
+        </div>
+        <div class="progress mb-2">
+            <div class="progress-bar progress-bar-striped" id="4" style="min-width: 100px;"></div>
+        </div>
+        <div class="progress mb-2">
+            <div class="progress-bar progress-bar-striped" id="5" style="min-width: 100px;"></div>
+        </div>
+        <div class="progress mb-2">
+            <div class="progress-bar progress-bar-striped" id="6" style="min-width: 100px;"></div>
+        </div>
+    </div>
+
+    <div id="label-container" style="display: none;"></div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-pprn3073KE6tl6bjs2QrFaJGz5/SUsLqktiwsUTF55Jfv3qYSDhgCecCxMW52nD2" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/speech-commands@0.4.0/dist/speech-commands.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+    <script src="./librerias/artyom.min.js"></script>
+    <script src="./librerias/artyom.window.min.js"></script>
+    <script src="./modelo/actions.js"></script>
+
+    <script type="text/javascript">
+        // more documentation available at
+        // https://github.com/tensorflow/tfjs-models/tree/master/speech-commands
+
+        // the link to your model provided by Teachable Machine export panel
+        const URL = 'https://teachablemachine.withgoogle.com/models/6VSbXGVMx/';
+
+        async function createModel() {
+            const checkpointURL = URL + 'model.json'; // model topology
+            const metadataURL = URL + 'metadata.json'; // model metadata
+
+            const recognizer = speechCommands.create(
+                'BROWSER_FFT', // fourier transform type, not useful to change
+                undefined, // speech commands vocabulary feature, not useful for your models
+                checkpointURL,
+                metadataURL);
+
+            // check that model and metadata are loaded via HTTPS requests.
+            await recognizer.ensureModelLoaded();
+
+            return recognizer;
+        }
+
+        async function init() {
+            const recognizer = await createModel();
+            const classLabels = recognizer.wordLabels(); // get class labels
+            const labelBox = document.getElementById('box');
+            const labelContainer = document.getElementById('label-container');
+            for (let i = 0; i < classLabels.length; i++) {
+                labelContainer.appendChild(document.createElement('div'));
+            }
+
+            // listen() takes two arguments:
+            // 1. A callback function that is invoked anytime a word is recognized.
+            // 2. A configuration object with adjustable fields
+            var instrument = '';
+            var instrument2 = '';
+
+            recognizer.listen(result => {
+                var score1 = 0;
+                var score2 = 0;
+                const scores = result.scores; // probability of prediction for each class
+                // render the probability scores per class
+                for (let i = 0; i < classLabels.length; i++) {
+                    const classPrediction = classLabels[i] + ": " + result.scores[i].toFixed(2);
+                    var progress = document.getElementById(i);
+                    progress.style.width = (result.scores[i].toFixed(2) * 100) + '%';
+                    progress.innerHTML = classPrediction;
+                    labelContainer.childNodes[i].innerHTML = classPrediction;
+                    score2 = result.scores[i].toFixed(2);
+                    if (score2 > score1) {
+                        instrument = classLabels[i];
+                        score1 = result.scores[i].toFixed(2);
+                    }
+                }
+
+                if (instrument != instrument2) {   
+                    instrument2 = instrument;
+                    if (instrument != 'Ruido de fondo') {
+                        artyom.say("El instrumento es "+instrument);
+                    } 
+                    // labelContainer.innerHTML = instrument;
+                }
+
+                labelBox.innerHTML = instrument + " - " + score1;
+            }, {
+                includeSpectrogram: true, // in case listen should return result.spectrogram
+                probabilityThreshold: 0.75,
+                invokeCallbackOnNoiseAndUnknown: true,
+                overlapFactor: 0.01 // probably want between 0.5 and 0.75. More info in README
+            });
+            
+           
+
+            
+        }
+
+        </script>
+</body>
+</html>
